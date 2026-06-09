@@ -5,6 +5,7 @@
 #include <imgui_impl_opengl3.h>
 #include <SDL.h>
 #include <SDL_opengl.h>
+#include <fstream>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -102,6 +103,10 @@ void GUI::render(
     bool& is_capturing,
     std::string& status_message) {
 
+    float dt = ImGui::GetIO().DeltaTime;
+    if (copy_feedback_timer_ > 0.0f) copy_feedback_timer_ -= dt;
+    if (save_feedback_timer_ > 0.0f) save_feedback_timer_ -= dt;
+
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(viewport->WorkSize);
@@ -118,7 +123,7 @@ void GUI::render(
     render_controls_panel(whisper, transcriber, model_path, selected_language,
                           translate, is_capturing, status_message);
     ImGui::Spacing();
-    render_transcript_panel(transcriber);
+    render_transcript_panel(transcriber, status_message);
 
     ImGui::End();
 }
@@ -201,9 +206,13 @@ void GUI::render_controls_panel(
 
     ImGui::Text("Model:");
     ImGui::SameLine();
-    char path_buf[512];
+    char path_buf[512] = {};
+#ifdef _WIN32
+    strncpy_s(path_buf, sizeof(path_buf), model_path.c_str(), _TRUNCATE);
+#else
     strncpy(path_buf, model_path.c_str(), sizeof(path_buf) - 1);
     path_buf[sizeof(path_buf) - 1] = '\0';
+#endif
     if (ImGui::InputText("##model_path", path_buf, sizeof(path_buf))) {
         model_path = path_buf;
     }
@@ -310,11 +319,56 @@ void GUI::render_controls_panel(
     }
 }
 
-void GUI::render_transcript_panel(Transcriber& transcriber) {
+void GUI::render_transcript_panel(Transcriber& transcriber, std::string& status_message) {
     if (!ImGui::CollapsingHeader("Transcript", ImGuiTreeNodeFlags_DefaultOpen))
         return;
 
     std::string text = transcriber.get_transcript();
+
+    if (ImGui::Button("Copy to Clipboard", ImVec2(150, 30))) {
+        if (!text.empty()) {
+            ImGui::SetClipboardText(text.c_str());
+            copy_feedback_timer_ = 2.0f;
+        }
+    }
+
+    ImGui::SameLine();
+
+    char save_buf[256] = {};
+#ifdef _WIN32
+    strncpy_s(save_buf, sizeof(save_buf), save_path_.c_str(), _TRUNCATE);
+#else
+    strncpy(save_buf, save_path_.c_str(), sizeof(save_buf) - 1);
+    save_buf[sizeof(save_buf) - 1] = '\0';
+#endif
+    ImGui::SetNextItemWidth(200);
+    if (ImGui::InputText("##save_path", save_buf, sizeof(save_buf))) {
+        save_path_ = save_buf;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Save to File", ImVec2(120, 30))) {
+        if (!text.empty()) {
+            std::ofstream file(save_path_);
+            if (file.is_open()) {
+                file << text;
+                file.close();
+                save_feedback_timer_ = 2.0f;
+            } else {
+                status_message = "Failed to save file!";
+            }
+        }
+    }
+
+    if (copy_feedback_timer_ > 0.0f) {
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(0.2f, 0.9f, 0.2f, 1.0f), "Copied!");
+    }
+    if (save_feedback_timer_ > 0.0f) {
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(0.2f, 0.9f, 0.2f, 1.0f), "Saved!");
+    }
+
+    ImGui::Separator();
 
     ImGui::BeginChild("transcript_scroll", ImVec2(0, 0), ImGuiChildFlags_Borders,
                       ImGuiWindowFlags_HorizontalScrollbar);

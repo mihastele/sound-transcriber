@@ -51,7 +51,7 @@ private:
         bool& is_capturing,
         std::string& status_message);
 
-    void render_transcript_panel(Transcriber& transcriber);
+    void render_transcript_panel(Transcriber& transcriber, std::string& status_message);
 
     SDL_Window* window_ = nullptr;
     SDL_GLContext gl_context_ = nullptr;
@@ -65,4 +65,8 @@ private:
 
     std::vector<std::string> languages_;
     int language_selection_ = 0;
+
+    std::string save_path_ = "transcript.txt";
+    float copy_feedback_timer_ = 0.0f;
+    float save_feedback_timer_ = 0.0f;
 };

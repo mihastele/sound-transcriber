@@ -20,7 +20,8 @@ bool WhisperEngine::load_model(const std::string& model_path) {
         ctx_ = nullptr;
     }
 
-    ctx_ = whisper_init_from_file(model_path.c_str());
+    whisper_context_params cparams = whisper_context_default_params();
+    ctx_ = whisper_init_from_file_with_params(model_path.c_str(), cparams);
     if (!ctx_) return false;
 
     model_name_ = std::filesystem::path(model_path).stem().string();

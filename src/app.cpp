@@ -1,5 +1,6 @@
 #include "app.h"
 #include <SDL.h>
+#include <imgui_impl_sdl2.h>
 
 App::App()
     : transcriber_(whisper_),
